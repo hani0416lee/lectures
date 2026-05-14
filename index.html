@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>사다리 게임</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #1a1a2e;
+      color: #eee;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 20px;
+      color: #e94560;
+      letter-spacing: 2px;
+    }
+
+    /* Setup panel */
+    #setup {
+      background: #16213e;
+      border-radius: 16px;
+      padding: 24px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      width: 100%;
+      max-width: 560px;
+      margin-bottom: 24px;
+    }
+
+    .setup-header {
+      display: grid;
+      grid-template-columns: 28px 1fr 1fr 32px;
+      gap: 8px;
+      align-items: center;
+      padding: 0 2px;
+    }
+
+    .setup-header span {
+      font-size: 0.78rem;
+      color: #aaa;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    .setup-header span:first-child { text-align: center; }
+
+    #entry-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 380px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    #entry-list::-webkit-scrollbar { width: 4px; }
+    #entry-list::-webkit-scrollbar-track { background: transparent; }
+    #entry-list::-webkit-scrollbar-thumb { background: #2a3a6a; border-radius: 4px; }
+
+    .entry-row {
+      display: grid;
+      grid-template-columns: 28px 1fr 1fr 32px;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .entry-row .entry-num {
+      text-align: center;
+      font-size: 0.8rem;
+      color: #556;
+      font-weight: 600;
+    }
+
+    .entry-row input {
+      background: #0f3460;
+      border: 1.5px solid transparent;
+      border-radius: 8px;
+      padding: 9px 12px;
+      color: #eee;
+      font-size: 0.9rem;
+      outline: none;
+      width: 100%;
+      transition: border-color 0.15s;
+    }
+
+    .entry-row input:focus { border-color: #e94560; }
+    .entry-row input::placeholder { color: #445; }
+
+    .entry-row input.result-input:focus { border-color: #4ade80; }
+
+    .del-btn {
+      width: 28px;
+      height: 28px;
+      border: none;
+      background: transparent;
+      color: #445;
+      font-size: 1.1rem;
+      cursor: pointer;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, color 0.15s;
+      flex-shrink: 0;
+    }
+    .del-btn:hover { background: #3a1a2a; color: #e94560; }
+
+    .add-row-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: transparent;
+      border: 1.5px dashed #2a3a6a;
+      border-radius: 8px;
+      color: #556;
+      font-size: 0.9rem;
+      padding: 9px 12px;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+      width: 100%;
+    }
+    .add-row-btn:hover { border-color: #e94560; color: #e94560; }
+
+    .btn {
+      padding: 10px 24px;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: transform 0.1s, opacity 0.2s;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.4; cursor: default; }
+
+    .btn-primary { background: #e94560; color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: #c73652; }
+
+    .btn-secondary { background: #0f3460; color: #eee; }
+    .btn-secondary:hover:not(:disabled) { background: #1a4a80; }
+
+    .btn-row {
+      display: flex;
+      gap: 10px;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .count-badge {
+      font-size: 0.82rem;
+      color: #556;
+    }
+
+    .count-badge span { color: #e94560; font-weight: bold; }
+
+    /* Game area */
+    #game-area { display: none; width: 100%; max-width: 900px; }
+
+    #canvas-wrapper {
+      position: relative;
+      margin: 0 auto;
+    }
+
+    canvas {
+      display: block;
+      border-radius: 12px;
+      background: #16213e;
+    }
+
+    /* Result overlay */
+    #result-banner {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+    }
+
+    #result-banner.show { display: flex; }
+
+    .result-box {
+      background: #16213e;
+      border: 3px solid #e94560;
+      border-radius: 20px;
+      padding: 40px 60px;
+      text-align: center;
+      animation: pop 0.3s ease;
+    }
+
+    @keyframes pop {
+      from { transform: scale(0.5); opacity: 0; }
+      to   { transform: scale(1);   opacity: 1; }
+    }
+
+    .result-box .player-name { font-size: 1.4rem; color: #aaa; margin-bottom: 8px; }
+    .result-box .arrow { font-size: 2rem; margin: 8px 0; }
+    .result-box .result-name { font-size: 2.4rem; font-weight: bold; color: #e94560; }
+
+    .result-close {
+      margin-top: 24px;
+      background: transparent;
+      border: 2px solid #e94560;
+      color: #e94560;
+      border-radius: 10px;
+      padding: 8px 24px;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    .result-close:hover { background: #e94560; color: #fff; }
+
+    #controls {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+
+    #hint { color: #aaa; font-size: 0.85rem; margin-top: 8px; text-align: center; }
+
+    /* Reveal-all table */
+    #reveal-table {
+      display: none;
+      width: 100%;
+      margin-top: 20px;
+      border-collapse: collapse;
+    }
+
+    #reveal-table th, #reveal-table td {
+      padding: 10px 16px;
+      text-align: center;
+      border-bottom: 1px solid #2a2a4a;
+      font-size: 0.95rem;
+    }
+
+    #reveal-table th { color: #aaa; }
+    #reveal-table td:first-child { color: #e94560; font-weight: bold; }
+    #reveal-table td:last-child { color: #4ade80; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+<h1>사다리 게임</h1>
+
+<!-- Setup -->
+<div id="setup">
+  <div class="setup-header">
+    <span>#</span>
+    <span>참가자</span>
+    <span>결과</span>
+    <span></span>
+  </div>
+  <div id="entry-list"></div>
+  <button class="add-row-btn" id="add-row-btn">＋ 참가자 추가</button>
+  <div class="btn-row">
+    <span class="count-badge">참가자 <span id="count-display">6</span>명</span>
+    <button class="btn btn-primary" id="start-btn" disabled>게임 시작</button>
+  </div>
+</div>
+
+<!-- Game -->
+<div id="game-area">
+  <div id="canvas-wrapper">
+    <canvas id="ladder-canvas"></canvas>
+  </div>
+  <p id="hint">참가자 이름을 클릭하면 경로가 표시됩니다</p>
+  <div id="controls">
+    <button class="btn btn-secondary" id="reveal-all-btn">전체 공개</button>
+    <button class="btn btn-secondary" id="reset-btn">다시 하기</button>
+    <button class="btn btn-primary" id="new-game-btn">새 게임</button>
+  </div>
+  <table id="reveal-table">
+    <thead><tr><th>참가자</th><th>→</th><th>결과</th></tr></thead>
+    <tbody id="reveal-tbody"></tbody>
+  </table>
+</div>
+
+<!-- Result banner -->
+<div id="result-banner">
+  <div class="result-box">
+    <div class="player-name" id="banner-player"></div>
+    <div class="arrow">↓</div>
+    <div class="result-name" id="banner-result"></div>
+    <button class="result-close" id="banner-close">확인</button>
+  </div>
+</div>
+
+<script>
+  /* ── Entry list (paired player + result rows) ── */
+  const entryList = document.getElementById('entry-list');
+  const startBtn  = document.getElementById('start-btn');
+  const countDisplay = document.getElementById('count-display');
+
+  function createRow(playerVal = '', resultVal = '') {
+    const row = document.createElement('div');
+    row.className = 'entry-row';
+
+    const num = document.createElement('span');
+    num.className = 'entry-num';
+
+    const pInput = document.createElement('input');
+    pInput.type = 'text';
+    pInput.placeholder = '이름';
+    pInput.value = playerVal;
+
+    const rInput = document.createElement('input');
+    rInput.type = 'text';
+    rInput.className = 'result-input';
+    rInput.placeholder = '결과';
+    rInput.value = resultVal;
+
+    const del = document.createElement('button');
+    del.className = 'del-btn';
+    del.title = '삭제';
+    del.textContent = '✕';
+    del.addEventListener('click', () => {
+      if (entryList.children.length <= 2) return;
+      row.remove();
+      reindex();
+      validate();
+    });
+
+    pInput.addEventListener('input', validate);
+    rInput.addEventListener('input', validate);
+
+    row.append(num, pInput, rInput, del);
+    entryList.appendChild(row);
+    reindex();
+    validate();
+    return row;
+  }
+
+  function reindex() {
+    [...entryList.children].forEach((row, i) => {
+      row.querySelector('.entry-num').textContent = i + 1;
+    });
+    countDisplay.textContent = entryList.children.length;
+  }
+
+  function getEntries() {
+    return [...entryList.children].map(row => {
+      const [, pInput, rInput] = row.children;
+      return { player: pInput.value.trim(), result: rInput.value.trim() };
+    });
+  }
+
+  function validate() {
+    const entries = getEntries();
+    const allFilled = entries.length >= 2 && entries.every(e => e.player && e.result);
+    startBtn.disabled = !allFilled;
+    countDisplay.textContent = entries.length;
+  }
+
+  // Default 6 rows
+  const defaults = [
+    ['참가자1', '결과1'], ['참가자2', '결과2'], ['참가자3', '결과3'],
+    ['참가자4', '결과4'], ['참가자5', '결과5'], ['참가자6', '결과6'],
+  ];
+  defaults.forEach(([p, r]) => createRow(p, r));
+
+  document.getElementById('add-row-btn').addEventListener('click', () => {
+    createRow();
+    entryList.lastElementChild.querySelector('input').focus();
+    entryList.scrollTop = entryList.scrollHeight;
+  });
+
+  /* ── Ladder engine ── */
+  const PADDING_X = 60;
+  const PADDING_TOP = 70;
+  const PADDING_BOTTOM = 70;
+  const RUNG_DENSITY = 0.35;
+  const ANIM_SPEED = 6;  // px per frame
+
+  let ladder = null;
+
+  class LadderGame {
+    constructor(players, results) {
+      this.players = players;
+      this.results = results;
+      this.n = players.length;
+      this.rungs = [];      // [{row, left} ...] left = column index (0-based, goes right)
+      this.mapping = [];    // mapping[i] = result index for player i
+      this.revealed = new Array(this.n).fill(false);
+      this.animating = false;
+
+      this._buildRungs();
+      this._computeMapping();
+      this._setupCanvas();
+      this._draw();
+      this._attachEvents();
+    }
+
+    _buildRungs() {
+      const ROWS = 14;
+      this.rows = ROWS;
+      for (let row = 0; row < ROWS; row++) {
+        let col = 0;
+        while (col < this.n - 1) {
+          if (Math.random() < RUNG_DENSITY) {
+            this.rungs.push({ row, left: col });
+            col += 2; // skip adjacent to avoid crossing
+          } else {
+            col++;
+          }
+        }
+      }
+    }
+
+    _computeMapping() {
+      for (let p = 0; p < this.n; p++) {
+        let col = p;
+        for (let row = 0; row < this.rows; row++) {
+          const goRight = this.rungs.find(r => r.row === row && r.left === col);
+          const goLeft  = this.rungs.find(r => r.row === row && r.left === col - 1);
+          if (goRight) col++;
+          else if (goLeft) col--;
+        }
+        this.mapping[p] = col;
+      }
+    }
+
+    _setupCanvas() {
+      const canvas = document.getElementById('ladder-canvas');
+      const maxW = Math.min(window.innerWidth - 40, 900);
+      const minColW = 80;
+      const colW = Math.max(minColW, Math.floor((maxW - PADDING_X * 2) / (this.n - 1 || 1)));
+      const width = PADDING_X * 2 + colW * (this.n - 1);
+      const height = PADDING_TOP + PADDING_BOTTOM + 420;
+
+      canvas.width = width;
+      canvas.height = height;
+
+      this.canvas = canvas;
+      this.ctx = canvas.getContext('2d');
+      this.colW = colW;
+      this.height = height;
+      this.width = width;
+      this.rowH = 420 / (this.rows + 1);
+    }
+
+    colX(col) { return PADDING_X + col * this.colW; }
+    rowY(row) { return PADDING_TOP + (row + 1) * this.rowH; }
+
+    _draw(highlightPath = null, progress = null) {
+      const ctx = this.ctx;
+      ctx.clearRect(0, 0, this.width, this.height);
+
+      // Vertical lines
+      for (let i = 0; i < this.n; i++) {
+        ctx.strokeStyle = '#2a3a6a';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(this.colX(i), PADDING_TOP);
+        ctx.lineTo(this.colX(i), this.height - PADDING_BOTTOM);
+        ctx.stroke();
+      }
+
+      // Rungs
+      for (const rung of this.rungs) {
+        ctx.strokeStyle = '#3a5a9a';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(this.colX(rung.left),     this.rowY(rung.row));
+        ctx.lineTo(this.colX(rung.left + 1), this.rowY(rung.row));
+        ctx.stroke();
+      }
+
+      // Highlight path
+      if (highlightPath && highlightPath.length > 0) {
+        ctx.strokeStyle = '#e94560';
+        ctx.lineWidth = 5;
+        ctx.shadowColor = '#e94560';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+
+        const total = highlightPath.length;
+        const drawn = progress !== null ? Math.min(progress, total) : total;
+
+        for (let i = 0; i < Math.floor(drawn); i++) {
+          const seg = highlightPath[i];
+          ctx.moveTo(seg.x1, seg.y1);
+          ctx.lineTo(seg.x2, seg.y2);
+        }
+
+        // Partial last segment
+        if (progress !== null && drawn < total) {
+          const seg = highlightPath[Math.floor(drawn)];
+          const frac = drawn - Math.floor(drawn);
+          ctx.moveTo(seg.x1, seg.y1);
+          ctx.lineTo(seg.x1 + (seg.x2 - seg.x1) * frac, seg.y1 + (seg.y2 - seg.y1) * frac);
+        }
+
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+
+      // Player labels
+      for (let i = 0; i < this.n; i++) {
+        const x = this.colX(i);
+        const revealed = this.revealed[i];
+        ctx.fillStyle = revealed ? '#e94560' : '#eee';
+        ctx.font = 'bold 14px Segoe UI';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        // Box
+        const bw = Math.min(this.colW - 10, 80);
+        const bh = 32;
+        ctx.fillStyle = revealed ? '#e94560' : '#0f3460';
+        ctx.beginPath();
+        ctx.roundRect(x - bw/2, 16, bw, bh, 8);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.fillText(this._truncate(this.players[i], bw - 12), x, 32);
+      }
+
+      // Result labels
+      for (let i = 0; i < this.n; i++) {
+        const x = this.colX(i);
+        // Find which result is at col i
+        const playerIdx = this.mapping.indexOf(i);
+        const show = playerIdx !== -1 && this.revealed[playerIdx];
+        const bw = Math.min(this.colW - 10, 80);
+        const bh = 32;
+        ctx.fillStyle = show ? '#4ade80' : '#0f3460';
+        ctx.beginPath();
+        ctx.roundRect(x - bw/2, this.height - PADDING_BOTTOM + 8, bw, bh, 8);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 14px Segoe UI';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(show ? this._truncate(this.results[i], bw - 12) : '?', x, this.height - PADDING_BOTTOM + 24);
+      }
+    }
+
+    _truncate(str, maxPx) {
+      const ctx = this.ctx;
+      if (ctx.measureText(str).width <= maxPx) return str;
+      while (str.length > 1 && ctx.measureText(str + '…').width > maxPx) str = str.slice(0, -1);
+      return str + '…';
+    }
+
+    _buildPath(playerIdx) {
+      const segs = [];
+      let col = playerIdx;
+
+      // Top to first row
+      segs.push({ x1: this.colX(col), y1: PADDING_TOP, x2: this.colX(col), y2: this.rowY(0) });
+
+      for (let row = 0; row < this.rows; row++) {
+        const goRight = this.rungs.find(r => r.row === row && r.left === col);
+        const goLeft  = this.rungs.find(r => r.row === row && r.left === col - 1);
+
+        if (goRight) {
+          segs.push({ x1: this.colX(col), y1: this.rowY(row), x2: this.colX(col + 1), y2: this.rowY(row) });
+          col++;
+        } else if (goLeft) {
+          segs.push({ x1: this.colX(col), y1: this.rowY(row), x2: this.colX(col - 1), y2: this.rowY(row) });
+          col--;
+        }
+
+        // Vertical down to next row
+        const nextY = row < this.rows - 1 ? this.rowY(row + 1) : this.height - PADDING_BOTTOM;
+        segs.push({ x1: this.colX(col), y1: this.rowY(row), x2: this.colX(col), y2: nextY });
+      }
+
+      return segs;
+    }
+
+    _totalLength(segs) {
+      return segs.reduce((s, seg) => s + Math.hypot(seg.x2 - seg.x1, seg.y2 - seg.y1), 0);
+    }
+
+    _animate(playerIdx) {
+      if (this.animating) return;
+      this.animating = true;
+
+      const path = this._buildPath(playerIdx);
+      const totalLen = this._totalLength(path);
+      let traveled = 0;
+      let segIdx = 0;
+      let segProg = 0;
+
+      const step = () => {
+        traveled += ANIM_SPEED;
+
+        // Figure out how many segments are fully drawn
+        let rem = traveled;
+        let fullyDrawn = 0;
+        let partialFrac = 0;
+
+        for (let i = 0; i < path.length; i++) {
+          const len = Math.hypot(path[i].x2 - path[i].x1, path[i].y2 - path[i].y1);
+          if (rem >= len) { rem -= len; fullyDrawn = i + 1; }
+          else { partialFrac = rem / len; break; }
+        }
+
+        const progress = fullyDrawn + partialFrac;
+        this._draw(path, progress);
+
+        if (traveled < totalLen) {
+          requestAnimationFrame(step);
+        } else {
+          this._draw(path);
+          this.revealed[playerIdx] = true;
+          this._draw(path);
+          this.animating = false;
+          this._showBanner(playerIdx);
+        }
+      };
+
+      requestAnimationFrame(step);
+    }
+
+    _showBanner(playerIdx) {
+      const resultCol = this.mapping[playerIdx];
+      document.getElementById('banner-player').textContent = this.players[playerIdx];
+      document.getElementById('banner-result').textContent = this.results[resultCol];
+      document.getElementById('result-banner').classList.add('show');
+    }
+
+    _hitTestPlayer(mx, my) {
+      for (let i = 0; i < this.n; i++) {
+        const x = this.colX(i);
+        const bw = Math.min(this.colW - 10, 80);
+        if (mx >= x - bw/2 && mx <= x + bw/2 && my >= 16 && my <= 48) return i;
+      }
+      return -1;
+    }
+
+    _attachEvents() {
+      this.canvas.addEventListener('click', e => {
+        if (this.animating) return;
+        const rect = this.canvas.getBoundingClientRect();
+        const scaleX = this.canvas.width / rect.width;
+        const scaleY = this.canvas.height / rect.height;
+        const mx = (e.clientX - rect.left) * scaleX;
+        const my = (e.clientY - rect.top)  * scaleY;
+        const idx = this._hitTestPlayer(mx, my);
+        if (idx !== -1 && !this.revealed[idx]) this._animate(idx);
+        else if (idx !== -1 && this.revealed[idx]) this._showBanner(idx);
+      });
+
+      this.canvas.style.cursor = 'pointer';
+    }
+
+    revealAll() {
+      if (this.animating) return;
+      this.mapping.forEach((_, i) => this.revealed[i] = true);
+      this._draw();
+
+      const tbody = document.getElementById('reveal-tbody');
+      tbody.innerHTML = '';
+      this.players.forEach((p, i) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${p}</td><td>→</td><td>${this.results[this.mapping[i]]}</td>`;
+        tbody.appendChild(tr);
+      });
+      document.getElementById('reveal-table').style.display = 'table';
+    }
+
+    reset() {
+      this.revealed.fill(false);
+      this.rungs = [];
+      this._buildRungs();
+      this._computeMapping();
+      this._draw();
+      document.getElementById('reveal-table').style.display = 'none';
+    }
+  }
+
+  /* ── UI wiring ── */
+  document.getElementById('start-btn').addEventListener('click', () => {
+    const entries = getEntries();
+    const players = entries.map(e => e.player);
+    const results = entries.map(e => e.result);
+
+    document.getElementById('setup').style.display = 'none';
+    document.getElementById('game-area').style.display = 'block';
+    ladder = new LadderGame(players, results);
+  });
+
+  document.getElementById('reveal-all-btn').addEventListener('click', () => {
+    if (ladder) ladder.revealAll();
+  });
+
+  document.getElementById('reset-btn').addEventListener('click', () => {
+    if (ladder) ladder.reset();
+  });
+
+  document.getElementById('new-game-btn').addEventListener('click', () => {
+    document.getElementById('game-area').style.display = 'none';
+    document.getElementById('reveal-table').style.display = 'none';
+    document.getElementById('setup').style.display = 'flex';
+    ladder = null;
+  });
+
+  document.getElementById('banner-close').addEventListener('click', () => {
+    document.getElementById('result-banner').classList.remove('show');
+  });
+
+  document.getElementById('result-banner').addEventListener('click', e => {
+    if (e.target === document.getElementById('result-banner'))
+      document.getElementById('result-banner').classList.remove('show');
+  });
+</script>
+</body>
+</html>
