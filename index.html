@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>건강의고전적이해</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+      background: linear-gradient(135deg, #f8fbff 0%, #fffaf2 100%);
+      color: #253044;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+
+    h1 {
+      font-size: clamp(1.8rem, 3vw, 2.7rem);
+      margin: 10px 0 18px;
+      color: #2563eb;
+      letter-spacing: -0.03em;
+      font-weight: 800;
+    }
+
+    .page-shell {
+      width: 100%;
+      max-width: 1180px;
+      display: grid;
+      grid-template-columns: 240px minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid #dbeafe;
+      box-shadow: 0 12px 32px rgba(59, 130, 246, 0.12);
+      border-radius: 20px;
+      padding: 18px;
+    }
+
+    .panel h2 {
+      font-size: 1rem;
+      color: #1e40af;
+      margin-bottom: 8px;
+    }
+
+    .panel p {
+      font-size: 0.84rem;
+      line-height: 1.45;
+      color: #64748b;
+      margin-bottom: 12px;
+    }
+
+    .group-bank {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .group-chip {
+      border: 1px solid #bfdbfe;
+      background: #eff6ff;
+      color: #1d4ed8;
+      padding: 8px 10px;
+      border-radius: 999px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      text-align: center;
+      cursor: grab;
+      user-select: none;
+      transition: transform 0.12s, background 0.12s, box-shadow 0.12s;
+    }
+
+    .group-chip:active { cursor: grabbing; transform: scale(0.98); }
+    .group-chip:hover { background: #dbeafe; box-shadow: 0 4px 10px rgba(37, 99, 235, 0.12); }
+    .group-chip.selected { background: #2563eb; color: #ffffff; border-color: #2563eb; }
+
+    .drag-ghost {
+      position: fixed;
+      left: 0;
+      top: 0;
+      z-index: 9999;
+      pointer-events: none;
+      border: 1px solid #bfdbfe;
+      background: #2563eb;
+      color: #ffffff;
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-size: 0.9rem;
+      font-weight: 800;
+      box-shadow: 0 10px 24px rgba(37, 99, 235, 0.25);
+      transform: translate(-50%, -50%);
+    }
+
+    .btn {
+      width: 100%;
+      padding: 11px 14px;
+      border: none;
+      border-radius: 12px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.1s, opacity 0.2s, background 0.2s;
+    }
+
+    .btn:active { transform: scale(0.98); }
+    .btn-primary { background: #2563eb; color: #fff; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-secondary { background: #e0f2fe; color: #075985; margin-top: 8px; }
+    .btn-secondary:hover { background: #bae6fd; }
+
+    #game-area {
+      width: 100%;
+      min-width: 0;
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid #dbeafe;
+      box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+      border-radius: 22px;
+      padding: clamp(10px, 1.8vw, 18px);
+      overflow-x: hidden;
+    }
+
+    #canvas-wrapper {
+      position: relative;
+      margin: 0 auto;
+      width: 100%;
+      min-width: 0;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-radius: 16px;
+      background: #f8fbff;
+      border: 1px solid #e2e8f0;
+    }
+
+    #hint {
+      color: #64748b;
+      font-size: 0.9rem;
+      margin-top: 12px;
+      text-align: center;
+    }
+
+    #controls {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
+
+    #controls .btn {
+      width: auto;
+      min-width: 120px;
+    }
+
+    #reveal-table {
+      display: none;
+      width: 100%;
+      max-width: 680px;
+      margin: 18px auto 0;
+      border-collapse: collapse;
+      overflow: hidden;
+      border-radius: 12px;
+      background: #fff;
+    }
+
+    #reveal-table th, #reveal-table td {
+      padding: 10px 16px;
+      text-align: center;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 0.95rem;
+    }
+
+    #reveal-table th { color: #475569; background: #eff6ff; }
+    #reveal-table td:first-child { color: #1d4ed8; font-weight: bold; }
+    #reveal-table td:last-child { color: #dc2626; font-weight: bold; }
+
+    #result-banner {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.35);
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+      padding: 20px;
+    }
+
+    #result-banner.show { display: flex; }
+
+    .result-box {
+      background: #ffffff;
+      border: 3px solid #2563eb;
+      border-radius: 24px;
+      padding: 38px 58px;
+      text-align: center;
+      box-shadow: 0 24px 60px rgba(37, 99, 235, 0.22);
+      animation: pop 0.25s ease;
+    }
+
+    @keyframes pop {
+      from { transform: scale(0.86); opacity: 0; }
+      to   { transform: scale(1); opacity: 1; }
+    }
+
+    .result-box .player-name { font-size: 1.35rem; color: #475569; margin-bottom: 8px; font-weight: 700; }
+    .result-box .arrow { font-size: 2rem; margin: 8px 0; color: #2563eb; }
+    .result-box .result-name { font-size: 2.8rem; font-weight: 900; color: #dc2626; }
+
+    .result-close {
+      margin-top: 24px;
+      background: #2563eb;
+      border: none;
+      color: #fff;
+      border-radius: 12px;
+      padding: 10px 26px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .slot-hover {
+      outline: 3px dashed #2563eb;
+      outline-offset: 3px;
+    }
+
+    @media (max-width: 820px) {
+      body { padding: 14px; }
+      .page-shell { grid-template-columns: 1fr; }
+      .group-bank { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+      .panel { order: 2; }
+      #game-area { order: 1; }
+    }
+  </style>
+</head>
+<body>
+  <h1>건강의고전적이해</h1>
+
+  <main class="page-shell">
+    <aside class="panel" aria-label="참가자 조 이름 패널">
+      <h2>참가자 이름</h2>
+      <p>아래 칩을 사다리 상단의 빈 참가자 칸으로 끌어다 놓으세요. 드래그가 불편하면 칩을 한 번 클릭한 뒤 빈 칸을 클릭해도 들어갑니다.</p>
+      <div class="group-bank" id="group-bank"></div>
+      <button class="btn btn-primary" id="shuffle-results-btn">결과 다시 섞기</button>
+      <button class="btn btn-secondary" id="reset-names-btn">참가자 칸 비우기</button>
+    </aside>
+
+    <section id="game-area" aria-label="사다리 타기 화면">
+      <div id="canvas-wrapper">
+        <canvas id="ladder-canvas"></canvas>
+      </div>
+      <p id="hint">상단의 빈 칸에 조 이름을 먼저 넣으세요. 조 이름이 들어간 칸을 클릭하면 경로와 결과가 표시됩니다.</p>
+      <div id="controls">
+        <button class="btn btn-secondary" id="reveal-all-btn">전체 공개</button>
+        <button class="btn btn-secondary" id="reset-btn">사다리 다시 만들기</button>
+        <button class="btn btn-primary" id="new-game-btn">새로 시작</button>
+      </div>
+      <table id="reveal-table">
+        <thead><tr><th>참가자</th><th>→</th><th>결과</th></tr></thead>
+        <tbody id="reveal-tbody"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <div id="result-banner">
+    <div class="result-box">
+      <div class="player-name" id="banner-player"></div>
+      <div class="arrow">↓</div>
+      <div class="result-name" id="banner-result"></div>
+      <button class="result-close" id="banner-close">확인</button>
+    </div>
+  </div>
+
+  <script>
+    const TOTAL = 12;
+    const GROUP_NAMES = Array.from({ length: TOTAL }, (_, i) => `${i + 1}조`);
+    const DEFAULT_PLAYERS = Array.from({ length: TOTAL }, () => '');
+    const BASE_RESULTS = Array.from({ length: TOTAL }, (_, i) => `${i + 1}번`);
+
+    const PADDING_X = 58;
+    const PADDING_TOP = 86;
+    const PADDING_BOTTOM = 86;
+    const LADDER_BODY_HEIGHT = 430;
+    const RUNG_DENSITY = 0.38;
+    const ANIM_SPEED = 7;
+
+    let players = [...DEFAULT_PLAYERS];
+    let results = shuffle([...BASE_RESULTS]);
+    let ladder = null;
+    let selectedGroupName = null;
+    let dragGhost = null;
+    let draggingGroupName = null;
+    let didCustomDrag = false;
+
+    function shuffle(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    function escapeHTML(str) {
+      return String(str)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+    function initGroupBank() {
+      const bank = document.getElementById('group-bank');
+      bank.innerHTML = '';
+      GROUP_NAMES.forEach(name => {
+        const chip = document.createElement('div');
+        chip.className = 'group-chip';
+        chip.draggable = true;
+        chip.textContent = name;
+        chip.addEventListener('dragstart', e => {
+          e.dataTransfer.setData('text/plain', name);
+          e.dataTransfer.effectAllowed = 'copy';
+        });
+        chip.addEventListener('click', () => {
+          if (didCustomDrag) {
+            didCustomDrag = false;
+            return;
+          }
+          selectGroupChip(name);
+        });
+        chip.addEventListener('pointerdown', e => {
+          startCustomChipDrag(e, name);
+        });
+        bank.appendChild(chip);
+      });
+    }
+
+    function selectGroupChip(name) {
+      selectedGroupName = selectedGroupName === name ? null : name;
+      document.querySelectorAll('.group-chip').forEach(chip => {
+        chip.classList.toggle('selected', chip.textContent === selectedGroupName);
+      });
+    }
+
+    function clearGroupSelection() {
+      selectedGroupName = null;
+      document.querySelectorAll('.group-chip').forEach(chip => chip.classList.remove('selected'));
+    }
+
+    function startCustomChipDrag(e, name) {
+      if (e.button !== undefined && e.button !== 0) return;
+      draggingGroupName = name;
+      didCustomDrag = false;
+
+      const startX = e.clientX;
+      const startY = e.clientY;
+
+      const onMove = moveEvent => {
+        const dx = moveEvent.clientX - startX;
+        const dy = moveEvent.clientY - startY;
+        if (!dragGhost && Math.hypot(dx, dy) > 4) {
+          didCustomDrag = true;
+          dragGhost = document.createElement('div');
+          dragGhost.className = 'drag-ghost';
+          dragGhost.textContent = name;
+          document.body.appendChild(dragGhost);
+        }
+        if (dragGhost) {
+          dragGhost.style.left = `${moveEvent.clientX}px`;
+          dragGhost.style.top = `${moveEvent.clientY}px`;
+        }
+      };
+
+      const onUp = upEvent => {
+        document.removeEventListener('pointermove', onMove);
+        document.removeEventListener('pointerup', onUp);
+
+        if (dragGhost) {
+          dragGhost.remove();
+          dragGhost = null;
+        }
+
+        if (didCustomDrag && ladder) {
+          const idx = ladder._clientPointToPlayerIndex(upEvent.clientX, upEvent.clientY);
+          if (idx !== -1) ladder.assignPlayerName(idx, draggingGroupName);
+        }
+        draggingGroupName = null;
+      };
+
+      document.addEventListener('pointermove', onMove);
+      document.addEventListener('pointerup', onUp);
+    }
+
+    class LadderGame {
+      constructor(players, results) {
+        this.players = players;
+        this.results = results;
+        this.n = players.length;
+        this.rungs = [];
+        this.mapping = [];
+        this.revealed = new Array(this.n).fill(false);
+        this.animating = false;
+
+        this._buildRungs();
+        this._computeMapping();
+        this._setupCanvas();
+        this._draw();
+        this._attachEvents();
+      }
+
+      _buildRungs() {
+        this.rungs = [];
+        const ROWS = 15;
+        this.rows = ROWS;
+        for (let row = 0; row < ROWS; row++) {
+          let col = 0;
+          while (col < this.n - 1) {
+            if (Math.random() < RUNG_DENSITY) {
+              this.rungs.push({ row, left: col });
+              col += 2;
+            } else {
+              col++;
+            }
+          }
+        }
+      }
+
+      _computeMapping() {
+        this.mapping = [];
+        for (let p = 0; p < this.n; p++) {
+          let col = p;
+          for (let row = 0; row < this.rows; row++) {
+            const goRight = this.rungs.find(r => r.row === row && r.left === col);
+            const goLeft  = this.rungs.find(r => r.row === row && r.left === col - 1);
+            if (goRight) col++;
+            else if (goLeft) col--;
+          }
+          this.mapping[p] = col;
+        }
+      }
+
+      _setupCanvas() {
+        const canvas = document.getElementById('ladder-canvas');
+        const wrapper = document.getElementById('canvas-wrapper');
+        const available = Math.floor(wrapper.clientWidth || document.getElementById('game-area').clientWidth || window.innerWidth - 32);
+        const width = Math.max(320, available);
+        const paddingX = width < 560 ? 20 : width < 760 ? 28 : 38;
+        const colW = (width - paddingX * 2) / (this.n - 1);
+        const bodyH = Math.max(300, Math.min(LADDER_BODY_HEIGHT, Math.floor(window.innerHeight * 0.48)));
+        const height = PADDING_TOP + PADDING_BOTTOM + bodyH;
+
+        canvas.width = width;
+        canvas.height = height;
+
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.paddingX = paddingX;
+        this.colW = colW;
+        this.width = width;
+        this.height = height;
+        this.bodyH = bodyH;
+        this.rowH = bodyH / (this.rows + 1);
+      }
+
+      colX(col) { return this.paddingX + col * this.colW; }
+      rowY(row) { return PADDING_TOP + (row + 1) * this.rowH; }
+
+      _draw(highlightPath = null, progress = null) {
+        const ctx = this.ctx;
+        ctx.clearRect(0, 0, this.width, this.height);
+
+        ctx.fillStyle = '#f8fbff';
+        ctx.fillRect(0, 0, this.width, this.height);
+
+        for (let i = 0; i < this.n; i++) {
+          ctx.strokeStyle = '#bfdbfe';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(this.colX(i), PADDING_TOP);
+          ctx.lineTo(this.colX(i), this.height - PADDING_BOTTOM);
+          ctx.stroke();
+        }
+
+        for (const rung of this.rungs) {
+          ctx.strokeStyle = '#93c5fd';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(this.colX(rung.left), this.rowY(rung.row));
+          ctx.lineTo(this.colX(rung.left + 1), this.rowY(rung.row));
+          ctx.stroke();
+        }
+
+        if (highlightPath && highlightPath.length > 0) {
+          ctx.strokeStyle = '#ef4444';
+          ctx.lineWidth = 5;
+          ctx.shadowColor = 'rgba(239, 68, 68, 0.45)';
+          ctx.shadowBlur = 10;
+          ctx.beginPath();
+
+          const total = highlightPath.length;
+          const drawn = progress !== null ? Math.min(progress, total) : total;
+
+          for (let i = 0; i < Math.floor(drawn); i++) {
+            const seg = highlightPath[i];
+            ctx.moveTo(seg.x1, seg.y1);
+            ctx.lineTo(seg.x2, seg.y2);
+          }
+
+          if (progress !== null && drawn < total) {
+            const seg = highlightPath[Math.floor(drawn)];
+            const frac = drawn - Math.floor(drawn);
+            ctx.moveTo(seg.x1, seg.y1);
+            ctx.lineTo(seg.x1 + (seg.x2 - seg.x1) * frac, seg.y1 + (seg.y2 - seg.y1) * frac);
+          }
+
+          ctx.stroke();
+          ctx.shadowBlur = 0;
+        }
+
+        this._drawPlayerLabels();
+        this._drawResultLabels();
+      }
+
+      _drawRoundedBox(x, y, w, h, radius, fill, stroke = null) {
+        const ctx = this.ctx;
+        ctx.beginPath();
+        ctx.roundRect(x - w / 2, y, w, h, radius);
+        ctx.fillStyle = fill;
+        ctx.fill();
+        if (stroke) {
+          ctx.strokeStyle = stroke;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+      }
+
+      _drawPlayerLabels() {
+        const ctx = this.ctx;
+        for (let i = 0; i < this.n; i++) {
+          const x = this.colX(i);
+          const revealed = this.revealed[i];
+          const hasName = Boolean(String(this.players[i] || '').trim());
+          const bw = Math.max(34, Math.min(74, this.colW - 4));
+          const bh = this.colW < 44 ? 32 : 40;
+          this._drawRoundedBox(x, 20, bw, bh, 10, revealed ? '#2563eb' : '#ffffff', revealed ? '#2563eb' : (hasName ? '#93c5fd' : '#cbd5e1'));
+          ctx.fillStyle = revealed ? '#fff' : (hasName ? '#1d4ed8' : '#94a3b8');
+          const fontSize = Math.max(10, Math.min(15, Math.floor(this.colW * 0.24)));
+          ctx.font = hasName ? `bold ${fontSize}px Segoe UI, sans-serif` : `bold ${Math.max(9, fontSize - 1)}px Segoe UI, sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          const label = hasName ? this.players[i] : '놓기';
+          ctx.fillText(this._truncate(label, bw - 8), x, 20 + bh / 2);
+        }
+      }
+
+      _drawResultLabels() {
+        const ctx = this.ctx;
+        for (let i = 0; i < this.n; i++) {
+          const x = this.colX(i);
+          const playerIdx = this.mapping.indexOf(i);
+          const show = playerIdx !== -1 && this.revealed[playerIdx];
+          const bw = Math.max(32, Math.min(68, this.colW - 6));
+          const bh = this.colW < 44 ? 30 : 38;
+          this._drawRoundedBox(x, this.height - PADDING_BOTTOM + 22, bw, bh, 10, show ? '#fee2e2' : '#ffffff', show ? '#fca5a5' : '#cbd5e1');
+          ctx.fillStyle = show ? '#dc2626' : '#94a3b8';
+          const fontSize = Math.max(10, Math.min(15, Math.floor(this.colW * 0.24)));
+          ctx.font = `bold ${fontSize}px Segoe UI, sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(show ? this._truncate(this.results[i], bw - 8) : '?', x, this.height - PADDING_BOTTOM + 22 + bh / 2);
+        }
+      }
+
+      _truncate(str, maxPx) {
+        const ctx = this.ctx;
+        let text = String(str || '');
+        if (ctx.measureText(text).width <= maxPx) return text;
+        while (text.length > 1 && ctx.measureText(text + '…').width > maxPx) text = text.slice(0, -1);
+        return text + '…';
+      }
+
+      _buildPath(playerIdx) {
+        const segs = [];
+        let col = playerIdx;
+        segs.push({ x1: this.colX(col), y1: PADDING_TOP, x2: this.colX(col), y2: this.rowY(0) });
+
+        for (let row = 0; row < this.rows; row++) {
+          const goRight = this.rungs.find(r => r.row === row && r.left === col);
+          const goLeft  = this.rungs.find(r => r.row === row && r.left === col - 1);
+
+          if (goRight) {
+            segs.push({ x1: this.colX(col), y1: this.rowY(row), x2: this.colX(col + 1), y2: this.rowY(row) });
+            col++;
+          } else if (goLeft) {
+            segs.push({ x1: this.colX(col), y1: this.rowY(row), x2: this.colX(col - 1), y2: this.rowY(row) });
+            col--;
+          }
+
+          const nextY = row < this.rows - 1 ? this.rowY(row + 1) : this.height - PADDING_BOTTOM;
+          segs.push({ x1: this.colX(col), y1: this.rowY(row), x2: this.colX(col), y2: nextY });
+        }
+        return segs;
+      }
+
+      _totalLength(segs) {
+        return segs.reduce((s, seg) => s + Math.hypot(seg.x2 - seg.x1, seg.y2 - seg.y1), 0);
+      }
+
+      _animate(playerIdx) {
+        if (this.animating) return;
+        this.animating = true;
+
+        const path = this._buildPath(playerIdx);
+        const totalLen = this._totalLength(path);
+        let traveled = 0;
+
+        const step = () => {
+          traveled += ANIM_SPEED;
+          let rem = traveled;
+          let fullyDrawn = 0;
+          let partialFrac = 0;
+
+          for (let i = 0; i < path.length; i++) {
+            const len = Math.hypot(path[i].x2 - path[i].x1, path[i].y2 - path[i].y1);
+            if (rem >= len) {
+              rem -= len;
+              fullyDrawn = i + 1;
+            } else {
+              partialFrac = rem / len;
+              break;
+            }
+          }
+
+          this._draw(path, fullyDrawn + partialFrac);
+
+          if (traveled < totalLen) {
+            requestAnimationFrame(step);
+          } else {
+            this.revealed[playerIdx] = true;
+            this._draw(path);
+            this.animating = false;
+            this._showBanner(playerIdx);
+          }
+        };
+        requestAnimationFrame(step);
+      }
+
+      _showBanner(playerIdx) {
+        const resultCol = this.mapping[playerIdx];
+        document.getElementById('banner-player').textContent = this.players[playerIdx];
+        document.getElementById('banner-result').textContent = this.results[resultCol];
+        document.getElementById('result-banner').classList.add('show');
+      }
+
+      _hitTestPlayer(mx, my) {
+        for (let i = 0; i < this.n; i++) {
+          const x = this.colX(i);
+          const bw = Math.max(44, Math.min(86, this.colW));
+          if (mx >= x - bw / 2 && mx <= x + bw / 2 && my >= 14 && my <= 68) return i;
+        }
+        return -1;
+      }
+
+      _attachEvents() {
+        this.canvas.addEventListener('click', e => {
+          if (this.animating) return;
+          const rect = this.canvas.getBoundingClientRect();
+          const scaleX = this.canvas.width / rect.width;
+          const scaleY = this.canvas.height / rect.height;
+          const mx = (e.clientX - rect.left) * scaleX;
+          const my = (e.clientY - rect.top) * scaleY;
+          const idx = this._hitTestPlayer(mx, my);
+          if (idx !== -1 && selectedGroupName) {
+            this.assignPlayerName(idx, selectedGroupName);
+            clearGroupSelection();
+            return;
+          }
+          if (idx !== -1 && !String(this.players[idx] || '').trim()) return;
+          if (idx !== -1 && !this.revealed[idx]) this._animate(idx);
+          else if (idx !== -1 && this.revealed[idx]) this._showBanner(idx);
+        });
+
+        this.canvas.addEventListener('dblclick', e => {
+          const rect = this.canvas.getBoundingClientRect();
+          const scaleX = this.canvas.width / rect.width;
+          const scaleY = this.canvas.height / rect.height;
+          const mx = (e.clientX - rect.left) * scaleX;
+          const my = (e.clientY - rect.top) * scaleY;
+          const idx = this._hitTestPlayer(mx, my);
+          if (idx !== -1) this._editPlayerName(idx);
+        });
+
+        this.canvas.addEventListener('dragover', e => {
+          const idx = this._eventToPlayerIndex(e);
+          if (idx !== -1) e.preventDefault();
+        });
+
+        this.canvas.addEventListener('drop', e => {
+          const idx = this._eventToPlayerIndex(e);
+          if (idx === -1) return;
+          e.preventDefault();
+          const name = e.dataTransfer.getData('text/plain').trim();
+          if (!name) return;
+          this.assignPlayerName(idx, name);
+        });
+
+        this.canvas.style.cursor = 'pointer';
+      }
+
+      _eventToPlayerIndex(e) {
+        return this._clientPointToPlayerIndex(e.clientX, e.clientY);
+      }
+
+      _clientPointToPlayerIndex(clientX, clientY) {
+        const rect = this.canvas.getBoundingClientRect();
+        if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) return -1;
+        const scaleX = this.canvas.width / rect.width;
+        const scaleY = this.canvas.height / rect.height;
+        const mx = (clientX - rect.left) * scaleX;
+        const my = (clientY - rect.top) * scaleY;
+        return this._hitTestPlayer(mx, my);
+      }
+
+      assignPlayerName(idx, name) {
+        const clean = String(name || '').trim();
+        if (!clean || idx < 0 || idx >= this.n) return;
+        this.players[idx] = clean;
+        players[idx] = clean;
+        this.revealed[idx] = false;
+        this._draw();
+        document.getElementById('reveal-table').style.display = 'none';
+      }
+
+      _editPlayerName(idx) {
+        const current = this.players[idx];
+        const next = prompt('참가자 이름을 입력하세요.', current);
+        if (next === null) return;
+        const clean = next.trim();
+        if (!clean) return;
+        this.assignPlayerName(idx, clean);
+      }
+
+      revealAll() {
+        if (this.animating) return;
+        this.mapping.forEach((_, i) => this.revealed[i] = true);
+        this._draw();
+
+        const tbody = document.getElementById('reveal-tbody');
+        tbody.innerHTML = '';
+        this.players.forEach((p, i) => {
+          const tr = document.createElement('tr');
+          const name = String(p || '').trim() || '미지정';
+          tr.innerHTML = `<td>${escapeHTML(name)}</td><td>→</td><td>${escapeHTML(this.results[this.mapping[i]])}</td>`;
+          tbody.appendChild(tr);
+        });
+        document.getElementById('reveal-table').style.display = 'table';
+      }
+
+      rebuildLadderOnly() {
+        this.revealed.fill(false);
+        this._buildRungs();
+        this._computeMapping();
+        this._draw();
+        document.getElementById('reveal-table').style.display = 'none';
+      }
+
+      rebuildAll(newPlayers, newResults) {
+        this.players = newPlayers;
+        this.results = newResults;
+        this.revealed = new Array(this.n).fill(false);
+        this._buildRungs();
+        this._computeMapping();
+        this._draw();
+        document.getElementById('reveal-table').style.display = 'none';
+      }
+    }
+
+    function startGame() {
+      ladder = new LadderGame(players, results);
+    }
+
+    document.getElementById('reveal-all-btn').addEventListener('click', () => {
+      if (ladder) ladder.revealAll();
+    });
+
+    document.getElementById('reset-btn').addEventListener('click', () => {
+      if (ladder) ladder.rebuildLadderOnly();
+    });
+
+    document.getElementById('new-game-btn').addEventListener('click', () => {
+      players = [...DEFAULT_PLAYERS];
+      results = shuffle([...BASE_RESULTS]);
+      ladder = new LadderGame(players, results);
+      document.getElementById('reveal-table').style.display = 'none';
+    });
+
+    document.getElementById('shuffle-results-btn').addEventListener('click', () => {
+      results = shuffle([...BASE_RESULTS]);
+      if (ladder) ladder.rebuildAll(players, results);
+    });
+
+    document.getElementById('reset-names-btn').addEventListener('click', () => {
+      players = [...DEFAULT_PLAYERS];
+      if (ladder) ladder.rebuildAll(players, results);
+    });
+
+    document.getElementById('banner-close').addEventListener('click', () => {
+      document.getElementById('result-banner').classList.remove('show');
+    });
+
+    document.getElementById('result-banner').addEventListener('click', e => {
+      if (e.target === document.getElementById('result-banner')) {
+        document.getElementById('result-banner').classList.remove('show');
+      }
+    });
+
+    let resizeTimer = null;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        if (!ladder) return;
+        ladder._setupCanvas();
+        ladder._draw();
+      }, 120);
+    });
+
+    initGroupBank();
+    startGame();
+  </script>
+</body>
+</html>
