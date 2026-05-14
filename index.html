@@ -80,6 +80,16 @@
     .group-chip:active { cursor: grabbing; transform: scale(0.98); }
     .group-chip:hover { background: #dbeafe; box-shadow: 0 4px 10px rgba(37, 99, 235, 0.12); }
     .group-chip.selected { background: #2563eb; color: #ffffff; border-color: #2563eb; }
+    .group-chip.used {
+      background: #e5e7eb;
+      color: #94a3b8;
+      border-color: #cbd5e1;
+      cursor: not-allowed;
+      opacity: 0.7;
+      box-shadow: none;
+      text-decoration: line-through;
+    }
+    .group-chip.used:hover { background: #e5e7eb; box-shadow: none; }
 
     .drag-ghost {
       position: fixed;
@@ -318,6 +328,22 @@
         .replaceAll("'", '&#039;');
     }
 
+    function isGroupUsed(name) {
+      return players.includes(name);
+    }
+
+    function syncGroupBankState() {
+      document.querySelectorAll('.group-chip').forEach(chip => {
+        const name = chip.dataset.name;
+        const used = isGroupUsed(name);
+        chip.classList.toggle('used', used);
+        chip.classList.toggle('selected', selectedGroupName === name && !used);
+        chip.draggable = !used;
+        chip.setAttribute('aria-disabled', used ? 'true' : 'false');
+        chip.title = used ? '이미 배치된 조입니다' : '사다리 상단 빈 칸으로 끌어다 놓기';
+      });
+    }
+
     function initGroupBank() {
       const bank = document.getElementById('group-bank');
       bank.innerHTML = '';
@@ -326,37 +352,45 @@
         chip.className = 'group-chip';
         chip.draggable = true;
         chip.textContent = name;
+        chip.dataset.name = name;
         chip.addEventListener('dragstart', e => {
+          if (isGroupUsed(name)) {
+            e.preventDefault();
+            return;
+          }
           e.dataTransfer.setData('text/plain', name);
-          e.dataTransfer.effectAllowed = 'copy';
+          e.dataTransfer.effectAllowed = 'move';
         });
         chip.addEventListener('click', () => {
           if (didCustomDrag) {
             didCustomDrag = false;
             return;
           }
+          if (isGroupUsed(name)) return;
           selectGroupChip(name);
         });
         chip.addEventListener('pointerdown', e => {
+          if (isGroupUsed(name)) return;
           startCustomChipDrag(e, name);
         });
         bank.appendChild(chip);
       });
+      syncGroupBankState();
     }
 
     function selectGroupChip(name) {
+      if (isGroupUsed(name)) return;
       selectedGroupName = selectedGroupName === name ? null : name;
-      document.querySelectorAll('.group-chip').forEach(chip => {
-        chip.classList.toggle('selected', chip.textContent === selectedGroupName);
-      });
+      syncGroupBankState();
     }
 
     function clearGroupSelection() {
       selectedGroupName = null;
-      document.querySelectorAll('.group-chip').forEach(chip => chip.classList.remove('selected'));
+      syncGroupBankState();
     }
 
     function startCustomChipDrag(e, name) {
+      if (isGroupUsed(name)) return;
       if (e.button !== undefined && e.button !== 0) return;
       draggingGroupName = name;
       didCustomDrag = false;
@@ -391,7 +425,7 @@
 
         if (didCustomDrag && ladder) {
           const idx = ladder._clientPointToPlayerIndex(upEvent.clientX, upEvent.clientY);
-          if (idx !== -1) ladder.assignPlayerName(idx, draggingGroupName);
+          if (idx !== -1 && !isGroupUsed(draggingGroupName)) ladder.assignPlayerName(idx, draggingGroupName);
         }
         draggingGroupName = null;
       };
@@ -709,7 +743,7 @@
           if (idx === -1) return;
           e.preventDefault();
           const name = e.dataTransfer.getData('text/plain').trim();
-          if (!name) return;
+          if (!name || isGroupUsed(name)) return;
           this.assignPlayerName(idx, name);
         });
 
@@ -733,9 +767,13 @@
       assignPlayerName(idx, name) {
         const clean = String(name || '').trim();
         if (!clean || idx < 0 || idx >= this.n) return;
+        const existingIdx = players.indexOf(clean);
+        if (existingIdx !== -1 && existingIdx !== idx) return;
         this.players[idx] = clean;
         players[idx] = clean;
         this.revealed[idx] = false;
+        clearGroupSelection();
+        syncGroupBankState();
         this._draw();
         document.getElementById('reveal-table').style.display = 'none';
       }
@@ -780,12 +818,14 @@
         this._buildRungs();
         this._computeMapping();
         this._draw();
+        syncGroupBankState();
         document.getElementById('reveal-table').style.display = 'none';
       }
     }
 
     function startGame() {
       ladder = new LadderGame(players, results);
+      syncGroupBankState();
     }
 
     document.getElementById('reveal-all-btn').addEventListener('click', () => {
@@ -800,6 +840,7 @@
       players = [...DEFAULT_PLAYERS];
       results = shuffle([...BASE_RESULTS]);
       ladder = new LadderGame(players, results);
+      syncGroupBankState();
       document.getElementById('reveal-table').style.display = 'none';
     });
 
